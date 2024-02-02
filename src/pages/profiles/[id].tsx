@@ -14,11 +14,36 @@ import { IconHoverEffect } from "~/components/IconHoverEffect";
 import { VscArrowLeft } from "react-icons/vsc";
 import { ProfileImage } from "~/components/ProfileImage";
 import internal from "stream";
+import { InfiniteTweetList } from "~/components/InfiniteTweetList";
+import { useSession } from "next-auth/react";
+import { Button } from "~/components/Button";
 
 const ProfilePage: NextPage<InferGetStaticPropsType<typeof getStaticProps>> = ({
   id,
 }) => {
   const { data: profile } = api.profile.getById.useQuery({ id });
+
+  const tweets = api.tweet.infiniteProfileFeed.useInfiniteQuery(
+    { userId: id },
+    { getNextPageParam: (lastPage) => lastPage.nextCursor },
+  );
+
+  const trpcUtils = api.useUtils();
+
+  const toggleFollow = api.profile.toggleFollow.useMutation({
+    onSuccess: ({ addedFollower }) => {
+      trpcUtils.profile.getById.setData({ id }, (oldData) => {
+        if (oldData == null) return;
+        const countModifier = addedFollower ? 1 : -1;
+
+        return {
+          ...oldData,
+          isFollowing: addedFollower,
+          followersCount: oldData.followersCount + countModifier,
+        };
+      });
+    },
+  });
 
   if (profile == null || profile.name == null) {
     return <ErrorPage statusCode={404} />;
@@ -39,13 +64,55 @@ const ProfilePage: NextPage<InferGetStaticPropsType<typeof getStaticProps>> = ({
         <div className="ml-2 flex-grow">
           <h1 className="tect-lf font-bold">{profile.name}</h1>
           <div className="text-gray-500">
-            {profile.tweetsCount} {profile.followsCount}
+            {profile.tweetsCount}{" "}
+            {getPlural(profile.tweetsCount, "Tweet", "Tweets")}{" "}
+            {profile.followsCount} Following {""}
+            {profile.followersCount}{" "}
+            {getPlural(profile.followersCount, "Follower", "Followers")}
           </div>
-        </div>
+        </div>{" "}
+        <FollowButton
+          isFollowing={profile.isFollowing}
+          isLoading={toggleFollow.isLoading}
+          userId={id}
+          onClick={() => toggleFollow.mutate({ userId: id })}
+        />
       </header>
+      <main>
+        <InfiniteTweetList
+          tweets={tweets.data?.pages.flatMap((page) => page.tweets)}
+          isError={tweets.isError}
+          isLoading={tweets.isLoading}
+          hasMore={tweets.hasNextPage}
+          fetchNewTweets={tweets.fetchNextPage}
+        />
+      </main>
     </>
   );
 };
+
+function FollowButton({
+  userId,
+  isLoading,
+  isFollowing,
+  onClick,
+}: {
+  userId: string;
+  isFollowing: boolean;
+  isLoading: boolean;
+  onClick: () => void;
+}) {
+  const session = useSession();
+
+  if (session.status !== "authenticated" || session.data.user.id === userId) {
+    return null;
+  }
+  return (
+    <Button disabled={isLoading} onClick={onClick} small gray={isFollowing}>
+      {isFollowing ? "Unfollow" : "Follow"}
+    </Button>
+  );
+}
 
 const pluralRules = new Intl.PluralRules();
 
