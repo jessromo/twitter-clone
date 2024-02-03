@@ -124,11 +124,11 @@ function TweetCard({
       <Link href={`/profiles/${user.id}`}>
         <ProfileImage src={user.image} />
       </Link>
-      <div className="felx-col flex flex-grow">
+      <div className="flex flex-grow flex-col">
         <div className="flex gap-1">
           <Link
             href={`/profiles/${user.id}`}
-            className="font-bold hover:underline focus-visible:underline"
+            className="font-bold outline-none hover:underline focus-visible:underline"
           >
             {user.name}
           </Link>
@@ -178,7 +178,7 @@ function HeartButton({
     <button
       disabled={isLoading}
       onClick={onClick}
-      className={`group flex items-center gap-1 self-start transition-colors duration-200 ${likedByMe ? "text-red-500" : "text-gray-500 hover:text-red-500 focus-visible:text-red-500"}`}
+      className={`group -m1-2 flex items-center gap-1 self-start transition-colors duration-200 ${likedByMe ? "text-red-500" : "text-gray-500 hover:text-red-500 focus-visible:text-red-500"}`}
     >
       <IconHoverEffect red>
         <HeartIcon
